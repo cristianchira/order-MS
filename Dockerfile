@@ -26,6 +26,7 @@
 FROM openjdk:17-oracle AS builder
 WORKDIR /app
 COPY . .
+RUN chmod +x ./mvnw
 RUN ./mvnw clean package -DskipTests
 
 # Stage 2: Create a minimal runtime image
