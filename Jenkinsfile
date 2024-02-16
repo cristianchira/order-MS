@@ -66,8 +66,8 @@ pipeline {
           withCredentials([usernamePassword(credentialsId: 'DOCKERHUB_CREDENTIALS', passwordVariable: 'DOCKERHUB_PSW', usernameVariable: 'DOCKERHUB_USR')]) {
               // Now DOCKERHUB_USR and DOCKERHUB_PSW are available as environment variables within this block
               sh 'echo $DOCKERHUB_PSW | docker login -u $DOCKERHUB_USR --password-stdin'
-              sh 'docker build -t cristianchira/Order-MS:${VERSION} .'
-              sh 'docker push cristianchira/Order-MS:${VERSION}'
+              sh 'docker build -t cristianchira/order-ms:${VERSION} .'
+              sh 'docker push cristianchira/order-ms:${VERSION}'
           }
       }
     }
@@ -95,7 +95,7 @@ pipeline {
     ])
         script {
        sh '''
-          sed -i "s/image:.*/image: cristianchira\\/Order-MS:${VERSION}/" aws/order-manifest.yml
+          sed -i "s/image:.*/image: cristianchira\\/order-ms:${VERSION}/" aws/order-manifest.yml
         '''
           sh 'git checkout master'
           // Set Git user email and name for this repository
