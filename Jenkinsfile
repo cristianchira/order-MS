@@ -2,9 +2,8 @@ pipeline {
   agent any
 
   environment {
-    DOCKERHUB_CREDENTIALS = credentials('DOCKER_HUB_CREDENTIAL')
+    DOCKERHUB_CREDENTIALS = credentials('DOCKERHUB_CREDENTIALS')
     VERSION = "${env.BUILD_ID}"
-
   }
 
   tools {
@@ -27,7 +26,7 @@ pipeline {
 
     stage('SonarQube Analysis') {
   steps {
-    sh 'mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar -Dsonar.host.url=http://15.236.186.247:9000/ -Dsonar.login=squ_32789bcdadb6e4337e432d6cbc100c2a1a14fde5'
+    sh 'mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar -Dsonar.host.url=http://192.168.1.165:9000/ -Dsonar.login=squ_c61ca4a64a8d3b5da680ef2ab8f6664b9096f69d'
   }
 }
 
@@ -35,9 +34,9 @@ pipeline {
    stage('Check code coverage') {
             steps {
                 script {
-                    def token = "squ_32789bcdadb6e4337e432d6cbc100c2a1a14fde5"
-                    def sonarQubeUrl = "http://15.236.186.247:9000/api"
-                    def componentKey = "com.codedecode:order"
+                    def token = "squ_c61ca4a64a8d3b5da680ef2ab8f6664b9096f69d"
+                    def sonarQubeUrl = "http://192.168.1.165:9000/api"
+                    def componentKey = "com.codeddecode:restaurantlisting"
                     def coverageThreshold = 80.0
 
                     def response = sh (
@@ -57,35 +56,51 @@ pipeline {
                     }
                 }
             }
-        } 
+        }
 
 
       stage('Docker Build and Push') {
       steps {
-          sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-          sh 'docker build -t codedecode25/order-service:${VERSION} .'
-          sh 'docker push codedecode25/order-service:${VERSION}'
+          script {
+          // Injecting credentials from DOCKERHUB_CREDENTIALS
+          withCredentials([usernamePassword(credentialsId: 'DOCKERHUB_CREDENTIALS', passwordVariable: 'DOCKERHUB_PSW', usernameVariable: 'DOCKERHUB_USR')]) {
+              // Now DOCKERHUB_USR and DOCKERHUB_PSW are available as environment variables within this block
+              sh 'echo $DOCKERHUB_PSW | docker login -u $DOCKERHUB_USR --password-stdin'
+              sh 'docker build -t cristianchira/Order-MS:${VERSION} .'
+              sh 'docker push cristianchira/Order-MS:${VERSION}'
+          }
       }
-    } 
+    }
+   }
 
 
      stage('Cleanup Workspace') {
       steps {
         deleteDir()
-       
+
       }
     }
 
 
-
     stage('Update Image Tag in GitOps') {
       steps {
-         checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[ credentialsId: 'git-ssh', url: 'git@github.com:udemy-dev-withK8s-AWS-codedecode/deployment-folder.git']])
+//       checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[ credentialsId: 'git-ssh', url: 'git@github.com/cristianchira/deployment-folder.git']])
+    checkout([
+      $class: 'GitSCM',
+      branches: [[name: '*/master']],
+      userRemoteConfigs: [[
+        credentialsId: 'git-ssh',
+        url: 'git@github.com:cristianchira/deployment-folder.git'
+      ]]
+    ])
         script {
        sh '''
-          sed -i "s/image:.*/image: codedecode25\\/order-service:${VERSION}/" aws/order-manifest.yml
+          sed -i "s/image:.*/image: cristianchira\\/Order-MS:${VERSION}/" aws/order-manifest.yml
         '''
           sh 'git checkout master'
+          // Set Git user email and name for this repository
+                sh 'git config user.email "cristianchira@gmail.com"'
+                sh 'git config user.name "Cristian CHIRA"'
           sh 'git add .'
           sh 'git commit -m "Update image tag"'
         sshagent(['git-ssh'])
@@ -99,5 +114,4 @@ pipeline {
   }
 
 }
-
 
